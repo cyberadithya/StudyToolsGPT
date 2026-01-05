@@ -12,7 +12,7 @@ app.use(express.json({ limit: "2mb" }));
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 function buildDeveloperInstruction(modeLabel) {
-  // Keep this simple for Phase 1. We’ll make it mode-specific + structured later.
+  // Keep this simple for Phase 1. We’ll make it mode-specific + structured later. Hi
   return [
     "You are StudyToolsGPT, a study assistant.",
     `Current mode: ${modeLabel}.`,
