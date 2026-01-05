@@ -23,8 +23,8 @@ body {
   --text-mid: rgba(222, 222, 222, 1);
   --primary: #579ad8;
 
-  --sidebar-w: 30rem; /* desktop sidebar width */
-  --content-max: 72rem; /* chat content max width */
+  --sidebar-w: 30rem;
+  --content-max: 72rem;
   --radius: 0.8rem;
 }
 
@@ -32,6 +32,29 @@ body {
   min-height: 100vh;
   display: flex;
   width: 100%;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  left: 50%;
+  top: 1.6rem;
+  transform: translateX(-50%);
+  z-index: 80;
+  background: rgba(18, 18, 30, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.9rem 1.2rem;
+  border-radius: 1rem;
+  font-size: 1.25rem;
+  color: white;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.toastShow {
+  opacity: 1;
+  transform: translateX(-50%) translateY(2px);
 }
 
 /* Sidebar */
@@ -81,6 +104,13 @@ body {
   color: var(--text-dim);
 }
 
+.sidebarBtnsRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 2.2rem 0 2.2rem 0;
+}
+
 .midBtn {
   width: 100%;
   background-color: var(--primary);
@@ -92,7 +122,6 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.8rem;
-  margin: 2.2rem 0 2.6rem 0;
   border-radius: var(--radius);
   cursor: pointer;
   transition: transform 120ms ease, filter 120ms ease;
@@ -101,6 +130,16 @@ body {
 .midBtn:hover {
   filter: brightness(1.05);
   transform: translateY(-1px);
+}
+
+.midBtnSecondary {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.midBtnSecondary:hover {
+  filter: none;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .addBtn {
@@ -142,6 +181,141 @@ body {
   flex: 0 0 auto;
 }
 
+/* Saved packs */
+.savedSection {
+  padding: 1.6rem 1.8rem;
+  border-bottom: var(--border);
+}
+
+.savedHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.2rem;
+}
+
+.savedHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.savedTitle {
+  font-size: 1.35rem;
+  color: rgba(230, 230, 230, 1);
+}
+
+.linkBtn {
+  background: transparent;
+  border: none;
+  color: rgba(210, 210, 210, 0.9);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.8rem;
+}
+
+.linkBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.savedEmpty {
+  font-size: 1.2rem;
+  color: rgba(210, 210, 210, 0.85);
+  line-height: 1.5;
+}
+
+.kbd {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 1.15rem;
+}
+
+.savedList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-height: 22rem;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.savedItem {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.savedOpen {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+  color: white;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease, transform 120ms ease, border-color 120ms ease;
+}
+
+.savedOpen:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.savedItemActive .savedOpen {
+  border-color: rgba(87, 154, 216, 0.55);
+  background: rgba(87, 154, 216, 0.08);
+}
+
+.savedItemTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.savedItemTitle {
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.savedItemMode {
+  font-size: 1.05rem;
+  color: rgba(210, 210, 210, 0.85);
+  flex: 0 0 auto;
+}
+
+.savedItemMeta {
+  margin-top: 0.35rem;
+  font-size: 1.05rem;
+  color: rgba(200, 200, 200, 0.78);
+}
+
+.iconBtn {
+  width: 3.2rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(240, 240, 240, 0.95);
+  cursor: pointer;
+  font-size: 1.5rem;
+  transition: background 120ms ease;
+}
+
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Lower nav */
 .lowerSidebar {
   padding: 1.8rem;
   margin-top: auto;
@@ -183,12 +357,12 @@ body {
   padding: 3rem 3.2rem;
 }
 
-/* Mobile header (hidden on desktop) */
+/* Mobile header */
 .mainHeader {
   display: none;
   align-items: center;
   gap: 1.2rem;
-  margin-bottom: 1.6rem;
+  margin-bottom: 1.2rem;
 }
 
 .hamburger {
@@ -205,6 +379,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  flex: 1;
 }
 
 .mainTitle {
@@ -215,6 +390,51 @@ body {
 .mainSubtitle {
   font-size: 1.2rem;
   color: var(--text-dim);
+}
+
+.headerBtn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  border-radius: 1rem;
+  padding: 0.8rem 1.1rem;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.headerBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mode selector */
+.modeRow {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto 1.2rem auto;
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.modePill {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(240, 240, 240, 0.95);
+  border-radius: 999px;
+  padding: 0.7rem 1.0rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.modePill:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.modePillActive {
+  border-color: rgba(87, 154, 216, 0.65);
+  background: rgba(87, 154, 216, 0.12);
 }
 
 /* Chat area */
@@ -262,6 +482,29 @@ body {
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* Action bar on assistant messages */
+.actionBar {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.actionBtn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(240, 240, 240, 0.95);
+  border-radius: 999px;
+  padding: 0.5rem 0.85rem;
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.actionBtn:hover {
+  background: rgba(255, 255, 255, 0.09);
 }
 
 /* Footer/input */
