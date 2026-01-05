@@ -103,24 +103,47 @@ function App() {
     closeSidebar();
   };
 
-  const sendMessage = (text) => {
+  const sendMessage = async (text) => {
     const trimmed = (text ?? "").trim();
     if (!trimmed) return;
 
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: trimmed },
-      {
-        role: "assistant",
-        text:
-          `(${modeLabel} mode — placeholder)\n` +
-          "Once the API is wired, I’ll generate structured study output here. For now, this is UI-only.\n\n" +
-          "Try saving this as a Study Pack using the Save button.",
-      },
-    ]);
-
+    // 1) Add the user message immediately
+    const nextMessages = [...messages, { role: "user", text: trimmed }];
+    setMessages(nextMessages);
     setInput("");
+
+    // 2) Add a temporary “thinking…” assistant message
+    setMessages((prev) => [...prev, { role: "assistant", text: "Thinking…" }]);
+
+    try {
+      const resp = await fetch("/api/respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modeLabel,
+          messages: nextMessages.filter((m) => m.role === "user" || m.role === "assistant"),
+        }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) throw new Error(data?.error || "Request failed");
+
+      // 3) Replace “Thinking…” with real assistant text
+      setMessages((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = { role: "assistant", text: data.text || "(No response text)" };
+        return copy;
+      });
+    } catch (e) {
+      setMessages((prev) => {
+        const copy = [...prev];
+        copy[copy.length - 1] = { role: "assistant", text: `Error: ${e.message}` };
+        return copy;
+      });
+    }
   };
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
