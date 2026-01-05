@@ -6,6 +6,8 @@ import home from './assets/home.svg';
 import saved from './assets/bookmark.svg';
 import upgrade from './assets/rocket.svg';
 import sendBtn from './assets/send.svg';
+import userIcon from './assets/user-icon.png';
+import gptImgLogo from './assets/chatgptLogo.svg';
 
 function App() {
   return (
@@ -35,6 +37,14 @@ function App() {
       </div>
       <div className="Main">
         <div className="chats">
+          <div className="chat">
+            <img className="chatImg" src={userIcon} alt="" />
+            <p className="txt">Hello this is StudyToolsGPT</p>
+          </div>
+          <div className="chat bot">
+            <img className="chatImg" src={gptImgLogo} alt="" />
+            <p className="txt">Hello this is StudyToolsGPT</p>
+          </div>
 
         </div>
         <div className="chatFooter">
@@ -42,6 +52,7 @@ function App() {
             <input type="text" placeholder='Send a message'/>
             <button className="send"><img src={sendBtn} alt="Send" /></button>
           </div>
+          <p>StudyToolsGPT may produce inaccurate information about people, places, or facts.</p>
         </div>
       </div>
     </div>
