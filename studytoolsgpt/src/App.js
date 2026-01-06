@@ -24,22 +24,160 @@ const MODES = [
 function safeParse(json, fallback) {
   try {
     const parsed = JSON.parse(json);
-
     // Handle "null" (or any non-array garbage) safely
     if (!Array.isArray(parsed)) return fallback;
-
     return parsed;
   } catch {
     return fallback;
   }
 }
 
-
 function shortTitleFromMessages(modeLabel, messages) {
   const firstUser = messages.find((m) => m.role === "user")?.text?.trim();
   if (!firstUser) return `${modeLabel} Pack`;
   const cleaned = firstUser.replace(/\s+/g, " ");
   return cleaned.length > 44 ? cleaned.slice(0, 44) + "…" : cleaned;
+}
+
+function packToMarkdown(pack) {
+  if (!pack) return "";
+
+  const lines = [];
+  if (pack.title) lines.push(`# ${pack.title}`);
+  if (pack.overview) lines.push(`\n${pack.overview}\n`);
+
+  if (Array.isArray(pack.sections) && pack.sections.length) {
+    for (const s of pack.sections) {
+      lines.push(`\n## ${s.heading ?? "Section"}`);
+      const bullets = Array.isArray(s.bullets) ? s.bullets : [];
+      for (const b of bullets) lines.push(`- ${b}`);
+    }
+  }
+
+  if (Array.isArray(pack.formulas) && pack.formulas.length) {
+    lines.push(`\n## Key formulas`);
+    for (const f of pack.formulas) {
+      lines.push(`- **${f.name ?? "Formula"}**: \`${f.expression ?? ""}\`${f.note ? ` — ${f.note}` : ""}`);
+    }
+  }
+
+  if (Array.isArray(pack.common_mistakes) && pack.common_mistakes.length) {
+    lines.push(`\n## Common mistakes`);
+    for (const m of pack.common_mistakes) lines.push(`- ${m}`);
+  }
+
+  if (Array.isArray(pack.mini_examples) && pack.mini_examples.length) {
+    lines.push(`\n## Mini examples`);
+    for (const ex of pack.mini_examples) {
+      lines.push(`\n**${ex.prompt ?? "Example"}**`);
+      const steps = Array.isArray(ex.steps) ? ex.steps : [];
+      for (let i = 0; i < steps.length; i++) lines.push(`${i + 1}. ${steps[i]}`);
+      if (ex.answer) lines.push(`**Answer:** ${ex.answer}`);
+    }
+  }
+
+  if (Array.isArray(pack.practice) && pack.practice.length) {
+    lines.push(`\n## Quick practice`);
+    for (const p of pack.practice) {
+      lines.push(`\n**Q:** ${p.question ?? ""}`);
+      lines.push(`**A:** ${p.answer ?? ""}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function messageToCopyText(m) {
+  if (!m) return "";
+  if (m.kind === "cheatsheet") return packToMarkdown(m.pack);
+  return m.text ?? "";
+}
+
+function CheatSheetCard({ pack }) {
+  if (!pack) return null;
+
+  return (
+    <div className="packCard">
+      <div className="packHeader">
+        <div className="packTitle">{pack.title}</div>
+        <div className="packOverview">{pack.overview}</div>
+      </div>
+
+      {pack.sections?.map((s, idx) => (
+        <div key={idx} className="packSection">
+          <div className="packHeading">{s.heading}</div>
+          <ul className="packList">
+            {s.bullets?.map((b, j) => (
+              <li key={j}>{b}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      {pack.formulas?.length > 0 && (
+        <div className="packBlock">
+          <div className="packHeading">Key formulas</div>
+          <div className="formulaGrid">
+            {pack.formulas.map((f, idx) => (
+              <div key={idx} className="formulaCard">
+                <div className="formulaName">{f.name}</div>
+                <pre className="formulaExpr">{f.expression}</pre>
+                {f.note != null && f.note.trim() !== "" ? (
+                  <div className="formulaNote">{f.note}</div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pack.common_mistakes?.length > 0 && (
+        <div className="packBlock">
+          <div className="packHeading">Common mistakes</div>
+          <ul className="packList">
+            {pack.common_mistakes.map((m, idx) => (
+              <li key={idx}>{m}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {pack.mini_examples?.length > 0 && (
+        <div className="packBlock">
+          <div className="packHeading">Mini examples</div>
+          <div className="exampleGrid">
+            {pack.mini_examples.map((ex, idx) => (
+              <div key={idx} className="exampleCard">
+                <div className="examplePrompt">{ex.prompt}</div>
+                <ol className="exampleSteps">
+                  {ex.steps?.map((st, j) => (
+                    <li key={j}>{st}</li>
+                  ))}
+                </ol>
+                <div className="exampleAnswer">
+                  <span>Answer:</span> {ex.answer}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pack.practice?.length > 0 && (
+        <div className="packBlock">
+          <div className="packHeading">Quick practice</div>
+          <div className="practiceGrid">
+            {pack.practice.map((p, idx) => (
+              <div key={idx} className="practiceCard">
+                <div className="practiceQ">{p.question}</div>
+                <div className="practiceA">{p.answer}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function App() {
@@ -49,13 +187,22 @@ function App() {
 
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "What are you studying today? Pick a mode and paste notes or a topic." },
+    {
+      role: "assistant",
+      kind: "text",
+      text: "What are you studying today? Pick a mode and paste notes or a topic.",
+    },
   ]);
 
   const [packs, setPacks] = useState(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return safeParse(raw, []);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return safeParse(raw, []);
+    } catch {
+      return [];
+    }
   });
+
   const [activePackId, setActivePackId] = useState(null);
 
   const [toast, setToast] = useState(null);
@@ -68,7 +215,11 @@ function App() {
   }, [mode]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(packs));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(packs));
+    } catch {
+      // ignore storage failures
+    }
   }, [packs]);
 
   useEffect(() => {
@@ -97,7 +248,9 @@ function App() {
   const showToast = (text) => setToast(text);
 
   const startNewChat = () => {
-    setMessages([{ role: "assistant", text: "New chat started. What topic should we work on?" }]);
+    setMessages([
+      { role: "assistant", kind: "text", text: "New chat started. What topic should we work on?" },
+    ]);
     setInput("");
     setActivePackId(null);
     closeSidebar();
@@ -108,12 +261,12 @@ function App() {
     if (!trimmed) return;
 
     // 1) Add the user message immediately
-    const nextMessages = [...messages, { role: "user", text: trimmed }];
+    const nextMessages = [...messages, { role: "user", kind: "text", text: trimmed }];
     setMessages(nextMessages);
     setInput("");
 
     // 2) Add a temporary “thinking…” assistant message
-    setMessages((prev) => [...prev, { role: "assistant", text: "Thinking…" }]);
+    setMessages((prev) => [...prev, { role: "assistant", kind: "text", text: "Thinking…" }]);
 
     try {
       const resp = await fetch("/api/respond", {
@@ -129,21 +282,35 @@ function App() {
 
       if (!resp.ok) throw new Error(data?.error || "Request failed");
 
-      // 3) Replace “Thinking…” with real assistant text
+      // 3) Replace “Thinking…” with real assistant content
       setMessages((prev) => {
         const copy = [...prev];
-        copy[copy.length - 1] = { role: "assistant", text: data.text || "(No response text)" };
+
+        if (data.kind === "cheatsheet") {
+          copy[copy.length - 1] = {
+            role: "assistant",
+            kind: "cheatsheet",
+            pack: data.pack,
+            text: "", // not used when rendering the card
+          };
+        } else {
+          copy[copy.length - 1] = {
+            role: "assistant",
+            kind: "text",
+            text: data.text || "(No response text)",
+          };
+        }
+
         return copy;
       });
     } catch (e) {
       setMessages((prev) => {
         const copy = [...prev];
-        copy[copy.length - 1] = { role: "assistant", text: `Error: ${e.message}` };
+        copy[copy.length - 1] = { role: "assistant", kind: "text", text: `Error: ${e.message}` };
         return copy;
       });
     }
   };
-
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -165,7 +332,7 @@ function App() {
 
   const saveCurrentPack = () => {
     // Don’t save totally empty conversations
-    const meaningful = messages.some((m) => m.role === "user" && m.text.trim().length > 0);
+    const meaningful = messages.some((m) => m.role === "user" && (m.text ?? "").trim().length > 0);
     if (!meaningful) {
       showToast("Add a prompt first, then save.");
       return;
@@ -179,9 +346,7 @@ function App() {
       if (activePackId) {
         return prev
           .map((p) =>
-            p.id === activePackId
-              ? { ...p, title, mode, messages, updatedAt: now }
-              : p
+            p.id === activePackId ? { ...p, title, mode, messages, updatedAt: now } : p
           )
           .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
       }
@@ -217,7 +382,7 @@ function App() {
     setPacks((prev) => prev.filter((p) => p.id !== id));
     if (activePackId === id) {
       setActivePackId(null);
-      setMessages([{ role: "assistant", text: "Pack deleted. Start a new one?" }]);
+      setMessages([{ role: "assistant", kind: "text", text: "Pack deleted. Start a new one?" }]);
     }
     showToast("Deleted.");
   };
@@ -291,17 +456,29 @@ function App() {
             </div>
 
             <div className="upperSidebarBottom" aria-label="Quick prompts">
-              <button type="button" className="query" onClick={() => quickAsk("Make me a cheat sheet for limits and derivatives.")}>
+              <button
+                type="button"
+                className="query"
+                onClick={() => quickAsk("Make me a cheat sheet for limits and derivatives.")}
+              >
                 <img src={msgIcon} alt="" className="OldChatButton" />
                 Cheat sheet example
               </button>
 
-              <button type="button" className="query" onClick={() => quickAsk("Generate 10 practice problems on modular arithmetic with solutions.")}>
+              <button
+                type="button"
+                className="query"
+                onClick={() => quickAsk("Generate 10 practice problems on modular arithmetic with solutions.")}
+              >
                 <img src={msgIcon} alt="" className="OldChatButton" />
                 Practice problems example
               </button>
 
-              <button type="button" className="query" onClick={() => quickAsk("Turn my notes into flashcards. Ask me first what topics I’m weak in.")}>
+              <button
+                type="button"
+                className="query"
+                onClick={() => quickAsk("Turn my notes into flashcards. Ask me first what topics I’m weak in.")}
+              >
                 <img src={msgIcon} alt="" className="OldChatButton" />
                 Flashcards example
               </button>
@@ -334,7 +511,9 @@ function App() {
                       <button type="button" className="savedOpen" onClick={() => loadPack(p)}>
                         <div className="savedItemTop">
                           <span className="savedItemTitle">{p.title}</span>
-                          <span className="savedItemMode">{MODES.find((m) => m.id === p.mode)?.label ?? "Pack"}</span>
+                          <span className="savedItemMode">
+                            {MODES.find((m) => m.id === p.mode)?.label ?? "Pack"}
+                          </span>
                         </div>
                         <div className="savedItemMeta">
                           Updated {new Date(p.updatedAt ?? p.createdAt).toLocaleDateString()}
@@ -362,7 +541,11 @@ function App() {
               Home
             </button>
 
-            <button type="button" className="navItem" onClick={() => showToast("Sharing (coming soon)")}>
+            <button
+              type="button"
+              className="navItem"
+              onClick={() => showToast("Sharing (coming soon)")}
+            >
               <img src={upgrade} alt="" className="listItemsImg" />
               Consider Sharing
             </button>
@@ -410,6 +593,10 @@ function App() {
           {messages.map((m, idx) => {
             const isUser = m.role === "user";
             const isBot = !isUser;
+
+            const hasRenderableBotContent =
+              m.kind === "cheatsheet" ? Boolean(m.pack) : Boolean((m.text ?? "").trim());
+
             return (
               <div key={idx} className={`messageRow ${isUser ? "isUser" : "isBot"}`}>
                 <img
@@ -419,11 +606,19 @@ function App() {
                 />
 
                 <div className={`bubble ${isUser ? "bubbleUser" : "bubbleBot"}`}>
-                  <p className="txt">{m.text}</p>
+                  {m.kind === "cheatsheet" ? (
+                    <CheatSheetCard pack={m.pack} />
+                  ) : (
+                    <p className="txt">{m.text}</p>
+                  )}
 
-                  {isBot && (
+                  {isBot && hasRenderableBotContent && (
                     <div className="actionBar" aria-label="Message actions">
-                      <button type="button" className="actionBtn" onClick={() => copyToClipboard(m.text)}>
+                      <button
+                        type="button"
+                        className="actionBtn"
+                        onClick={() => copyToClipboard(messageToCopyText(m))}
+                      >
                         Copy
                       </button>
                       <button type="button" className="actionBtn" onClick={() => onAction("Shorten")}>

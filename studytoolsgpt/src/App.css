@@ -617,3 +617,140 @@ textarea:focus-visible {
     transform: translateX(0);
   }
 }
+
+/* Study Pack card */
+.packCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.packHeader {
+  padding: 1.1rem 1.2rem;
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.packTitle {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.packOverview {
+  font-size: 1.25rem;
+  color: rgba(220, 220, 220, 0.92);
+  line-height: 1.5;
+}
+
+.packSection {
+  padding: 1rem 1.1rem;
+  border-radius: 1.2rem;
+  background: rgba(28, 30, 58, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.packHeading {
+  font-size: 1.35rem;
+  font-weight: 650;
+  margin-bottom: 0.6rem;
+}
+
+.packList {
+  padding-left: 1.6rem;
+  font-size: 1.25rem;
+  line-height: 1.55;
+  color: rgba(235, 235, 235, 0.95);
+}
+
+.packBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.formulaGrid,
+.exampleGrid,
+.practiceGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+}
+
+@media (min-width: 850px) {
+  .formulaGrid,
+  .exampleGrid,
+  .practiceGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.formulaCard,
+.exampleCard,
+.practiceCard {
+  padding: 1rem 1.1rem;
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.formulaName {
+  font-size: 1.25rem;
+  font-weight: 650;
+  margin-bottom: 0.5rem;
+}
+
+.formulaExpr {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 1.2rem;
+  line-height: 1.45;
+  padding: 0.8rem;
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.formulaNote {
+  margin-top: 0.6rem;
+  font-size: 1.15rem;
+  color: rgba(220, 220, 220, 0.9);
+}
+
+.examplePrompt {
+  font-size: 1.25rem;
+  font-weight: 650;
+  margin-bottom: 0.6rem;
+}
+
+.exampleSteps {
+  padding-left: 1.8rem;
+  font-size: 1.2rem;
+  line-height: 1.5;
+  color: rgba(235, 235, 235, 0.95);
+  margin-bottom: 0.8rem;
+}
+
+.exampleAnswer {
+  font-size: 1.2rem;
+  color: rgba(235, 235, 235, 0.95);
+}
+
+.exampleAnswer span {
+  font-weight: 700;
+}
+
+.practiceQ {
+  font-size: 1.22rem;
+  font-weight: 650;
+  margin-bottom: 0.6rem;
+}
+
+.practiceA {
+  font-size: 1.18rem;
+  color: rgba(230, 230, 230, 0.92);
+  line-height: 1.5;
+}
+
