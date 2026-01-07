@@ -13,7 +13,9 @@ import gptImgLogo from "./assets/chatgptLogo.svg";
 
 const STORAGE_KEY = "studypacks_v1";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "";
+const RAW_API_BASE = process.env.REACT_APP_API_BASE || "";
+const API_BASE = RAW_API_BASE.replace(/\/+$/, ""); // remove trailing slashes
+
 
 // Optional guard against accidentally pasting a whole textbook
 const MAX_INPUT_CHARS = 8000;
@@ -285,6 +287,19 @@ function App() {
     closeSidebar();
   };
 
+  const toServerMessages = (msgs) =>
+    msgs
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => {
+        const text =
+          m.kind === "cheatsheet" && m.pack
+            ? packToMarkdown(m.pack)
+            : (m.text ?? "");
+
+        return { role: m.role, text };
+      });
+
+
   const sendMessage = async (text) => {
     const trimmed = (text ?? "").trim();
     if (!trimmed) return;
@@ -323,10 +338,8 @@ function App() {
         signal: controller.signal,
         body: JSON.stringify({
           modeLabel,
-          // keep server-compatible payload: role + text
-          messages: nextMessages
-            .filter((m) => m.role === "user" || m.role === "assistant")
-            .map((m) => ({ role: m.role, text: m.text ?? "" })),
+          messages: toServerMessages(nextMessages),
+          }),
         }),
       });
 
