@@ -582,7 +582,7 @@ function App() {
                 className="query"
                 disabled={isSending}
                 onClick={() =>
-                  quickAsk("Turn my notes into flashcards. Ask me first what topics I’m weak in.")
+                  quickAsk("Turn my notes on the parts of a plant cell into flashcards.")
                 }
               >
                 <img src={msgIcon} alt="" className="OldChatButton" />
