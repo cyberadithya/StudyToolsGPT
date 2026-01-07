@@ -6,9 +6,22 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 
+import rateLimit from "express-rate-limit";
+
 dotenv.config();
 
 const app = express();
+
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 60,                 // 60 requests per IP per 15 min
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api", limiter);
+
 
 // If you want to restrict CORS later, set CORS_ORIGIN=http://localhost:3000
 app.use(

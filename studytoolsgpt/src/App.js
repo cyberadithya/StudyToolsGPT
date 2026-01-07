@@ -13,6 +13,8 @@ import gptImgLogo from "./assets/chatgptLogo.svg";
 
 const STORAGE_KEY = "studypacks_v1";
 
+const API_BASE = process.env.REACT_APP_API_BASE || "";
+
 // Optional guard against accidentally pasting a whole textbook
 const MAX_INPUT_CHARS = 8000;
 
@@ -315,7 +317,7 @@ function App() {
     setInput("");
 
     try {
-      const resp = await fetch("/api/respond", {
+      const resp = await fetch(`${API_BASE}/api/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
