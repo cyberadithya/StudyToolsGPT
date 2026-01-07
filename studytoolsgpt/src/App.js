@@ -13,6 +13,9 @@ import gptImgLogo from "./assets/chatgptLogo.svg";
 
 const STORAGE_KEY = "studypacks_v1";
 
+// Optional guard against accidentally pasting a whole textbook
+const MAX_INPUT_CHARS = 8000;
+
 const MODES = [
   { id: "cheatsheet", label: "Cheat Sheet" },
   { id: "practice", label: "Practice Problems" },
@@ -21,15 +24,26 @@ const MODES = [
   { id: "plan", label: "Study Plan" },
 ];
 
+function makeId() {
+  return crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+}
+
 function safeParse(json, fallback) {
   try {
     const parsed = JSON.parse(json);
-    // Handle "null" (or any non-array garbage) safely
     if (!Array.isArray(parsed)) return fallback;
     return parsed;
   } catch {
     return fallback;
   }
+}
+
+function ensureMessageIds(msgs) {
+  if (!Array.isArray(msgs)) return [];
+  return msgs.map((m) => {
+    if (!m || typeof m !== "object") return { id: makeId(), role: "assistant", kind: "text", text: "" };
+    return { id: m.id ?? makeId(), ...m };
+  });
 }
 
 function shortTitleFromMessages(modeLabel, messages) {
@@ -57,7 +71,8 @@ function packToMarkdown(pack) {
   if (Array.isArray(pack.formulas) && pack.formulas.length) {
     lines.push(`\n## Key formulas`);
     for (const f of pack.formulas) {
-      lines.push(`- **${f.name ?? "Formula"}**: \`${f.expression ?? ""}\`${f.note ? ` — ${f.note}` : ""}`);
+      const note = f.note != null && String(f.note).trim() !== "" ? ` — ${f.note}` : "";
+      lines.push(`- **${f.name ?? "Formula"}**: \`${f.expression ?? ""}\`${note}`);
     }
   }
 
@@ -122,7 +137,7 @@ function CheatSheetCard({ pack }) {
               <div key={idx} className="formulaCard">
                 <div className="formulaName">{f.name}</div>
                 <pre className="formulaExpr">{f.expression}</pre>
-                {f.note != null && f.note.trim() !== "" ? (
+                {f.note != null && String(f.note).trim() !== "" ? (
                   <div className="formulaNote">{f.note}</div>
                 ) : null}
               </div>
@@ -182,17 +197,18 @@ function CheatSheetCard({ pack }) {
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const [mode, setMode] = useState(MODES[0].id);
-
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      kind: "text",
-      text: "What are you studying today? Pick a mode and paste notes or a topic.",
-    },
-  ]);
+
+  const [messages, setMessages] = useState(() =>
+    ensureMessageIds([
+      {
+        role: "assistant",
+        kind: "text",
+        text: "What are you studying today? Pick a mode and paste notes or a topic.",
+      },
+    ])
+  );
 
   const [packs, setPacks] = useState(() => {
     try {
@@ -204,8 +220,12 @@ function App() {
   });
 
   const [activePackId, setActivePackId] = useState(null);
-
   const [toast, setToast] = useState(null);
+
+  // Robustness for network calls
+  const [isSending, setIsSending] = useState(false);
+  const abortRef = useRef(null);
+  const latestReqRef = useRef(0);
 
   const chatsRef = useRef(null);
   const textareaRef = useRef(null);
@@ -223,14 +243,12 @@ function App() {
   }, [packs]);
 
   useEffect(() => {
-    // Auto-scroll to bottom when messages change
     const el = chatsRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
-    // Simple textarea autosize
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = "0px";
@@ -247,10 +265,19 @@ function App() {
 
   const showToast = (text) => setToast(text);
 
+  const cancelInFlight = () => {
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = null;
+    setIsSending(false);
+  };
+
   const startNewChat = () => {
-    setMessages([
-      { role: "assistant", kind: "text", text: "New chat started. What topic should we work on?" },
-    ]);
+    cancelInFlight();
+    setMessages(
+      ensureMessageIds([
+        { role: "assistant", kind: "text", text: "New chat started. What topic should we work on?" },
+      ])
+    );
     setInput("");
     setActivePackId(null);
     closeSidebar();
@@ -260,55 +287,72 @@ function App() {
     const trimmed = (text ?? "").trim();
     if (!trimmed) return;
 
-    // 1) Add the user message immediately
-    const nextMessages = [...messages, { role: "user", kind: "text", text: trimmed }];
+    if (isSending) {
+      showToast("Wait for the current response…");
+      return;
+    }
+
+    if (trimmed.length > MAX_INPUT_CHARS) {
+      showToast(`Message too long (${trimmed.length} chars). Try shortening.`);
+      return;
+    }
+
+    setIsSending(true);
+
+    // abort any previous request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const reqId = ++latestReqRef.current;
+
+    const userMsg = { id: makeId(), role: "user", kind: "text", text: trimmed };
+    const placeholderId = makeId();
+    const thinkingMsg = { id: placeholderId, role: "assistant", kind: "text", text: "Thinking…" };
+
+    const nextMessages = [...messages, userMsg, thinkingMsg];
     setMessages(nextMessages);
     setInput("");
-
-    // 2) Add a temporary “thinking…” assistant message
-    setMessages((prev) => [...prev, { role: "assistant", kind: "text", text: "Thinking…" }]);
 
     try {
       const resp = await fetch("/api/respond", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           modeLabel,
-          messages: nextMessages.filter((m) => m.role === "user" || m.role === "assistant"),
+          // keep server-compatible payload: role + text
+          messages: nextMessages
+            .filter((m) => m.role === "user" || m.role === "assistant")
+            .map((m) => ({ role: m.role, text: m.text ?? "" })),
         }),
       });
 
-      const data = await resp.json();
-
+      const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data?.error || "Request failed");
 
-      // 3) Replace “Thinking…” with real assistant content
-      setMessages((prev) => {
-        const copy = [...prev];
+      // ignore if a newer request started
+      if (reqId !== latestReqRef.current) return;
 
-        if (data.kind === "cheatsheet") {
-          copy[copy.length - 1] = {
-            role: "assistant",
-            kind: "cheatsheet",
-            pack: data.pack,
-            text: "", // not used when rendering the card
-          };
-        } else {
-          copy[copy.length - 1] = {
-            role: "assistant",
-            kind: "text",
-            text: data.text || "(No response text)",
-          };
-        }
+      const assistantMsg =
+        data.kind === "cheatsheet"
+          ? { id: placeholderId, role: "assistant", kind: "cheatsheet", pack: data.pack, text: "" }
+          : { id: placeholderId, role: "assistant", kind: "text", text: data.text || "(No response)" };
 
-        return copy;
-      });
+      setMessages((prev) => prev.map((m) => (m.id === placeholderId ? assistantMsg : m)));
     } catch (e) {
-      setMessages((prev) => {
-        const copy = [...prev];
-        copy[copy.length - 1] = { role: "assistant", kind: "text", text: `Error: ${e.message}` };
-        return copy;
-      });
+      if (e.name === "AbortError") return;
+      if (reqId !== latestReqRef.current) return;
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === placeholderId
+            ? { id: placeholderId, role: "assistant", kind: "text", text: `Error: ${e.message}` }
+            : m
+        )
+      );
+    } finally {
+      if (reqId === latestReqRef.current) setIsSending(false);
     }
   };
 
@@ -318,6 +362,8 @@ function App() {
   };
 
   const handleKeyDown = (e) => {
+    if (isSending) return;
+
     // Enter sends; Shift+Enter makes a newline
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -331,8 +377,9 @@ function App() {
   };
 
   const saveCurrentPack = () => {
-    // Don’t save totally empty conversations
-    const meaningful = messages.some((m) => m.role === "user" && (m.text ?? "").trim().length > 0);
+    const meaningful = messages.some(
+      (m) => m.role === "user" && (m.text ?? "").trim().length > 0
+    );
     if (!meaningful) {
       showToast("Add a prompt first, then save.");
       return;
@@ -342,7 +389,6 @@ function App() {
     const now = new Date().toISOString();
 
     setPacks((prev) => {
-      // update existing pack if activePackId exists
       if (activePackId) {
         return prev
           .map((p) =>
@@ -370,7 +416,8 @@ function App() {
   };
 
   const loadPack = (pack) => {
-    setMessages(pack.messages ?? []);
+    cancelInFlight();
+    setMessages(ensureMessageIds(pack.messages ?? []));
     setMode(pack.mode ?? MODES[0].id);
     setActivePackId(pack.id);
     setInput("");
@@ -382,7 +429,9 @@ function App() {
     setPacks((prev) => prev.filter((p) => p.id !== id));
     if (activePackId === id) {
       setActivePackId(null);
-      setMessages([{ role: "assistant", kind: "text", text: "Pack deleted. Start a new one?" }]);
+      setMessages(
+        ensureMessageIds([{ role: "assistant", kind: "text", text: "Pack deleted. Start a new one?" }])
+      );
     }
     showToast("Deleted.");
   };
@@ -394,14 +443,18 @@ function App() {
   };
 
   const copyToClipboard = async (text) => {
+    if (!text || String(text).trim() === "") {
+      showToast("Nothing to copy.");
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(text);
       showToast("Copied!");
     } catch {
-      // Fallback
       try {
         const ta = document.createElement("textarea");
-        ta.value = text;
+        ta.value = String(text);
         document.body.appendChild(ta);
         ta.select();
         document.execCommand("copy");
@@ -414,7 +467,6 @@ function App() {
   };
 
   const onAction = (actionName) => {
-    // Stub actions for now — will call refine endpoints later
     showToast(`${actionName} (coming soon)`);
   };
 
@@ -445,12 +497,16 @@ function App() {
             </div>
 
             <div className="sidebarBtnsRow">
-              <button type="button" className="midBtn" onClick={startNewChat}>
+              <button type="button" className="midBtn" onClick={startNewChat} disabled={isSending}>
                 <img src={addIcon} alt="" className="addBtn" />
                 New Chat
               </button>
 
-              <button type="button" className="midBtn midBtnSecondary" onClick={saveCurrentPack}>
+              <button
+                type="button"
+                className="midBtn midBtnSecondary"
+                onClick={saveCurrentPack}
+              >
                 Save
               </button>
             </div>
@@ -459,6 +515,7 @@ function App() {
               <button
                 type="button"
                 className="query"
+                disabled={isSending}
                 onClick={() => quickAsk("Make me a cheat sheet for limits and derivatives.")}
               >
                 <img src={msgIcon} alt="" className="OldChatButton" />
@@ -468,7 +525,10 @@ function App() {
               <button
                 type="button"
                 className="query"
-                onClick={() => quickAsk("Generate 10 practice problems on modular arithmetic with solutions.")}
+                disabled={isSending}
+                onClick={() =>
+                  quickAsk("Generate 10 practice problems on modular arithmetic with solutions.")
+                }
               >
                 <img src={msgIcon} alt="" className="OldChatButton" />
                 Practice problems example
@@ -477,7 +537,10 @@ function App() {
               <button
                 type="button"
                 className="query"
-                onClick={() => quickAsk("Turn my notes into flashcards. Ask me first what topics I’m weak in.")}
+                disabled={isSending}
+                onClick={() =>
+                  quickAsk("Turn my notes into flashcards. Ask me first what topics I’m weak in.")
+                }
               >
                 <img src={msgIcon} alt="" className="OldChatButton" />
                 Flashcards example
@@ -583,6 +646,7 @@ function App() {
               type="button"
               className={`modePill ${mode === m.id ? "modePillActive" : ""}`}
               onClick={() => setMode(m.id)}
+              disabled={isSending}
             >
               {m.label}
             </button>
@@ -590,7 +654,7 @@ function App() {
         </div>
 
         <section className="chats" ref={chatsRef} aria-label="Chat messages">
-          {messages.map((m, idx) => {
+          {messages.map((m) => {
             const isUser = m.role === "user";
             const isBot = !isUser;
 
@@ -598,7 +662,7 @@ function App() {
               m.kind === "cheatsheet" ? Boolean(m.pack) : Boolean((m.text ?? "").trim());
 
             return (
-              <div key={idx} className={`messageRow ${isUser ? "isUser" : "isBot"}`}>
+              <div key={m.id} className={`messageRow ${isUser ? "isUser" : "isBot"}`}>
                 <img
                   className="chatImg"
                   src={isUser ? userIcon : gptImgLogo}
@@ -648,8 +712,16 @@ function App() {
               placeholder={`Send a message… (${modeLabel})`}
               aria-label="Message input"
               rows={1}
+              disabled={isSending}
+              aria-disabled={isSending}
             />
-            <button className="send" type="submit" aria-label="Send message">
+            <button
+              className="send"
+              type="submit"
+              aria-label="Send message"
+              disabled={isSending}
+              aria-disabled={isSending}
+            >
               <img src={sendBtn} alt="" />
             </button>
           </form>
