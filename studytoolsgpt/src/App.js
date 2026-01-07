@@ -650,7 +650,7 @@ function App() {
             <button
               type="button"
               className="navItem"
-              onClick={() => showToast("Sharing (coming soon)")}
+              onClick={() => showToast("Share this tool with some of your friends :)")}
             >
               <img src={upgrade} alt="" className="listItemsImg" />
               Consider Sharing
