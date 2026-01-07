@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/StudyToolsGPT/static/css/main.4e6a7526.css",
-    "main.js": "/StudyToolsGPT/static/js/main.4c2beea7.js",
+    "main.js": "/StudyToolsGPT/static/js/main.b1aeada9.js",
     "static/media/user-icon.png": "/StudyToolsGPT/static/media/user-icon.79487ebd1120a8a7b004.png",
     "static/media/newstudylogo.png": "/StudyToolsGPT/static/media/newstudylogo.622fefe7df9130135f98.png",
     "static/media/chatgptLogo.svg": "/StudyToolsGPT/static/media/chatgptLogo.496558ea071637d128587cb98b0e1b1c.svg",
@@ -12,10 +12,10 @@
     "static/media/home.svg": "/StudyToolsGPT/static/media/home.54b8621214269a989c8b7627385bcd8a.svg",
     "static/media/message.svg": "/StudyToolsGPT/static/media/message.ef36f79693990ff17ecf42cd018fcb4e.svg",
     "main.4e6a7526.css.map": "/StudyToolsGPT/static/css/main.4e6a7526.css.map",
-    "main.4c2beea7.js.map": "/StudyToolsGPT/static/js/main.4c2beea7.js.map"
+    "main.b1aeada9.js.map": "/StudyToolsGPT/static/js/main.b1aeada9.js.map"
   },
   "entrypoints": [
     "static/css/main.4e6a7526.css",
-    "static/js/main.4c2beea7.js"
+    "static/js/main.b1aeada9.js"
   ]
 }
