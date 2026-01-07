@@ -316,7 +316,7 @@ function App() {
 
     setIsSending(true);
 
-    // abort any previous request
+    // Abort any previous in-flight request
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -325,11 +325,20 @@ function App() {
 
     const userMsg = { id: makeId(), role: "user", kind: "text", text: trimmed };
     const placeholderId = makeId();
-    const thinkingMsg = { id: placeholderId, role: "assistant", kind: "text", text: "Thinking…" };
+    const thinkingMsg = {
+      id: placeholderId,
+      role: "assistant",
+      kind: "text",
+      text: "Thinking…",
+    };
 
+    // UI messages (includes placeholder)
     const nextMessages = [...messages, userMsg, thinkingMsg];
     setMessages(nextMessages);
     setInput("");
+
+    // Server messages (exclude placeholder to keep prompt clean)
+    const serverMessages = [...messages, userMsg];
 
     try {
       const resp = await fetch(`${API_BASE}/api/respond`, {
@@ -338,23 +347,36 @@ function App() {
         signal: controller.signal,
         body: JSON.stringify({
           modeLabel,
-          messages: toServerMessages(nextMessages),
-          }),
+          messages: toServerMessages(serverMessages),
         }),
       });
 
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data?.error || "Request failed");
 
-      // ignore if a newer request started
+      // Ignore if a newer request started
       if (reqId !== latestReqRef.current) return;
 
       const assistantMsg =
         data.kind === "cheatsheet"
-          ? { id: placeholderId, role: "assistant", kind: "cheatsheet", pack: data.pack, text: "" }
-          : { id: placeholderId, role: "assistant", kind: "text", text: data.text || "(No response)" };
+          ? {
+              id: placeholderId,
+              role: "assistant",
+              kind: "cheatsheet",
+              pack: data.pack,
+              text: "",
+            }
+          : {
+              id: placeholderId,
+              role: "assistant",
+              kind: "text",
+              text: data.text || "(No response)",
+            };
 
-      setMessages((prev) => prev.map((m) => (m.id === placeholderId ? assistantMsg : m)));
+      // Replace the placeholder by ID (safe even if messages changed)
+      setMessages((prev) =>
+        prev.map((m) => (m.id === placeholderId ? assistantMsg : m))
+      );
     } catch (e) {
       if (e.name === "AbortError") return;
       if (reqId !== latestReqRef.current) return;
@@ -362,7 +384,12 @@ function App() {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === placeholderId
-            ? { id: placeholderId, role: "assistant", kind: "text", text: `Error: ${e.message}` }
+            ? {
+                id: placeholderId,
+                role: "assistant",
+                kind: "text",
+                text: `Error: ${e.message}`,
+              }
             : m
         )
       );
@@ -370,6 +397,7 @@ function App() {
       if (reqId === latestReqRef.current) setIsSending(false);
     }
   };
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
